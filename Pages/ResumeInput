@@ -1,0 +1,219 @@
+import React, { useState } from "react";
+import { ResumeAnalysis } from "@/entities/ResumeAnalysis";
+import { InvokeLLM } from "@/integrations/Core";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileText, ArrowRight, Sparkles, Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+import CandidateDetailsForm from "../components/resume/CandidateDetailsForm";
+import ResumeJobForm from "../components/resume/ResumeJobForm";
+
+export default function ResumeInputPage() {
+  const navigate = useNavigate();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    candidate_name: "",
+    experience_level: "",
+    target_role: "",
+    job_description: "",
+    original_resume: "",
+    extra_keywords: "",
+    tone_preference: "professional",
+    region: "US"
+  });
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setError(null);
+  };
+
+  const validateForm = () => {
+    const required = ['candidate_name', 'experience_level', 'target_role', 'job_description', 'original_resume'];
+    for (const field of required) {
+      if (!formData[field]) {
+        return `Please fill in the ${field.replace('_', ' ')} field`;
+      }
+    }
+    return null;
+  };
+
+  const handleAnalyze = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      // Create the comprehensive analysis prompt
+      const analysisPrompt = `
+You are an expert ATS specialist, senior resume writer, and career coach. Analyze this resume against the job description and provide comprehensive feedback.
+
+CANDIDATE DETAILS:
+- Name: ${formData.candidate_name}
+- Experience Level: ${formData.experience_level}
+- Target Role: ${formData.target_role}
+- Region: ${formData.region}
+- Tone Preference: ${formData.tone_preference}
+- Extra Keywords: ${formData.extra_keywords || "None"}
+
+JOB DESCRIPTION:
+${formData.job_description}
+
+ORIGINAL RESUME:
+${formData.original_resume}
+
+Please provide a comprehensive analysis including:
+1. ATS score (0-100)
+2. Keyword coverage analysis
+3. Skills gap identification
+4. Red flags and formatting issues
+5. Specific recommendations for improvement
+6. Must-have vs nice-to-have keywords from the JD
+7. Current resume strengths and weaknesses
+
+Focus on actionable insights for ATS optimization and job match improvement.
+`;
+
+      const analysisResult = await InvokeLLM({
+        prompt: analysisPrompt,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            ats_score: { type: "number", minimum: 0, maximum: 100 },
+            keyword_coverage: {
+              type: "object",
+              properties: {
+                must_have_covered: { type: "number" },
+                must_have_total: { type: "number" },
+                nice_to_have_covered: { type: "number" },
+                nice_to_have_total: { type: "number" }
+              }
+            },
+            skills_analysis: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  skill: { type: "string" },
+                  present: { type: "boolean" },
+                  evidence: { type: "string" },
+                  action: { type: "string" }
+                }
+              }
+            },
+            red_flags: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  issue: { type: "string" },
+                  description: { type: "string" },
+                  fix: { type: "string" }
+                }
+              }
+            },
+            strengths: { type: "array", items: { type: "string" } },
+            recommendations: { type: "array", items: { type: "string" } },
+            missing_keywords: { type: "array", items: { type: "string" } }
+          }
+        }
+      });
+
+      // Save the analysis to the database
+      const savedAnalysis = await ResumeAnalysis.create({
+        ...formData,
+        ats_score: analysisResult.ats_score,
+        analysis_results: analysisResult
+      });
+
+      // Navigate to analysis results
+      navigate(`${createPageUrl("Analysis")}?id=${savedAnalysis.id}`);
+
+    } catch (error) {
+      console.error("Analysis error:", error);
+      setError("Failed to analyze resume. Please check your inputs and try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+          </div>
+          <h1 className="text-4xl font-bold text-slate-900 mb-3">AI Resume Analyzer</h1>
+          <p className="text-slate-600 text-lg max-w-2xl mx-auto leading-relaxed">
+            Get your resume ATS-ready with AI-powered analysis, keyword optimization, and tailored recommendations
+          </p>
+        </div>
+
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Candidate Details */}
+          <CandidateDetailsForm 
+            formData={formData}
+            onInputChange={handleInputChange}
+          />
+
+          {/* Resume & Job Details */}
+          <ResumeJobForm 
+            formData={formData}
+            onInputChange={handleInputChange}
+          />
+        </div>
+
+        {/* Action Button */}
+        <div className="mt-10 text-center">
+          <Button
+            onClick={handleAnalyze}
+            disabled={isProcessing}
+            size="lg"
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-12 py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                Analyzing Resume...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-6 h-6 mr-3" />
+                Analyze & Optimize Resume
+                <ArrowRight className="w-6 h-6 ml-3" />
+              </>
+            )}
+          </Button>
+          <p className="text-slate-500 text-sm mt-4">
+            This usually takes 30-60 seconds to complete
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
