@@ -1,0 +1,182 @@
+import React, { useState, useEffect } from "react";
+import { ResumeAnalysis } from "@/entities/ResumeAnalysis";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  FileText, 
+  Download, 
+  Copy, 
+  CheckCircle, 
+  ArrowLeft,
+  Eye,
+  Sparkles
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+
+import ResumePreview from "../components/output/ResumePreview";
+import CoverLetterPreview from "../components/output/CoverLetterPreview";
+import STARTransformations from "../components/output/STARTransformations";
+
+export default function ResumeOutputPage() {
+  const navigate = useNavigate();
+  const [analysis, setAnalysis] = useState(null);
+  const [copiedText, setCopiedText] = useState("");
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadAnalysis();
+  }, []);
+
+  const loadAnalysis = async () => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const analysisId = urlParams.get('id');
+      
+      if (!analysisId) {
+        setError("No analysis ID provided");
+        return;
+      }
+
+      const analysisData = await ResumeAnalysis.list();
+      const currentAnalysis = analysisData.find(a => a.id === analysisId);
+      
+      if (!currentAnalysis) {
+        setError("Analysis not found");
+        return;
+      }
+
+      setAnalysis(currentAnalysis);
+    } catch (error) {
+      console.error("Error loading analysis:", error);
+      setError("Failed to load analysis results");
+    }
+  };
+
+  const copyToClipboard = (text, type) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedText(type);
+      setTimeout(() => setCopiedText(""), 2000);
+    });
+  };
+
+  const downloadAsText = (content, filename) => {
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6 flex items-center justify-center">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!analysis) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading optimized content...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate(createPageUrl("Analysis"))}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Sparkles className="w-8 h-8 text-blue-600" />
+                <h1 className="text-3xl font-bold text-slate-900">Optimized Resume & Content</h1>
+              </div>
+              <p className="text-slate-600">
+                ATS-ready resume and professional content for <strong>{analysis.candidate_name}</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <Tabs defaultValue="resume-ats" className="space-y-6">
+          <TabsList className="grid grid-cols-2 lg:grid-cols-4 w-full bg-white border border-slate-200 rounded-lg p-1">
+            <TabsTrigger value="resume-ats" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              ATS Resume
+            </TabsTrigger>
+            <TabsTrigger value="resume-formatted" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              Formatted
+            </TabsTrigger>
+            <TabsTrigger value="cover-letter" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              Cover Letter
+            </TabsTrigger>
+            <TabsTrigger value="transformations" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
+              Improvements
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="resume-ats">
+            <ResumePreview
+              title="ATS-Optimized Resume (Plain Text)"
+              content={analysis.optimized_resume_plain}
+              description="Copy this version for ATS systems and online applications"
+              onCopy={() => copyToClipboard(analysis.optimized_resume_plain, "ats-resume")}
+              onDownload={() => downloadAsText(analysis.optimized_resume_plain, `${analysis.candidate_name.replace(/\s+/g, '_')}_Resume_ATS.txt`)}
+              copied={copiedText === "ats-resume"}
+            />
+          </TabsContent>
+
+          <TabsContent value="resume-formatted">
+            <ResumePreview
+              title="Formatted Resume (Markdown)"
+              content={analysis.optimized_resume_formatted}
+              description="Use this version for portfolio, website, or when formatting is preserved"
+              onCopy={() => copyToClipboard(analysis.optimized_resume_formatted, "formatted-resume")}
+              onDownload={() => downloadAsText(analysis.optimized_resume_formatted, `${analysis.candidate_name.replace(/\s+/g, '_')}_Resume_Formatted.md`)}
+              copied={copiedText === "formatted-resume"}
+              isMarkdown={true}
+            />
+          </TabsContent>
+
+          <TabsContent value="cover-letter">
+            <CoverLetterPreview
+              coverLetter={analysis.cover_letter}
+              linkedinHeadline={analysis.linkedin_headline}
+              linkedinAbout={analysis.linkedin_about}
+              onCopy={copyToClipboard}
+              copiedText={copiedText}
+            />
+          </TabsContent>
+
+          <TabsContent value="transformations">
+            <STARTransformations
+              transformations={analysis.analysis_results?.star_transformations || []}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
