@@ -1,0 +1,112 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Target, TrendingUp, Award } from "lucide-react";
+
+export default function ScoreOverview({ score, coverage }) {
+  const getScoreColor = (score) => {
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-yellow-600";
+    return "text-red-600";
+  };
+
+  const getScoreStatus = (score) => {
+    if (score >= 80) return { label: "Excellent", color: "bg-green-100 text-green-800 border-green-200" };
+    if (score >= 60) return { label: "Good", color: "bg-yellow-100 text-yellow-800 border-yellow-200" };
+    return { label: "Needs Work", color: "bg-red-100 text-red-800 border-red-200" };
+  };
+
+  const status = getScoreStatus(score);
+  const mustHavePercentage = coverage ? Math.round((coverage.must_have_covered / coverage.must_have_total) * 100) : 0;
+  const niceToHavePercentage = coverage ? Math.round((coverage.nice_to_have_covered / coverage.nice_to_have_total) * 100) : 0;
+
+  return (
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+      <CardHeader className="border-b border-slate-100">
+        <CardTitle className="flex items-center gap-3 text-slate-900">
+          <Award className="w-5 h-5 text-blue-600" />
+          ATS Score Overview
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-6">
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Overall Score */}
+          <div className="text-center">
+            <div className="w-24 h-24 mx-auto mb-4 relative">
+              <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="#e2e8f0"
+                  strokeWidth="8"
+                  fill="none"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke={score >= 80 ? "#10b981" : score >= 60 ? "#f59e0b" : "#ef4444"}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  fill="none"
+                  strokeDasharray={`${score * 2.51} 251`}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className={`text-2xl font-bold ${getScoreColor(score)}`}>{score}</span>
+              </div>
+            </div>
+            <Badge className={`${status.color} border`}>
+              {status.label}
+            </Badge>
+          </div>
+
+          {/* Keyword Coverage */}
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-slate-700">Must-Have Keywords</span>
+                <span className="text-sm text-slate-600">
+                  {coverage?.must_have_covered || 0}/{coverage?.must_have_total || 0}
+                </span>
+              </div>
+              <Progress value={mustHavePercentage} className="h-2" />
+              <span className="text-xs text-slate-500">{mustHavePercentage}% covered</span>
+            </div>
+            
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-slate-700">Nice-to-Have Keywords</span>
+                <span className="text-sm text-slate-600">
+                  {coverage?.nice_to_have_covered || 0}/{coverage?.nice_to_have_total || 0}
+                </span>
+              </div>
+              <Progress value={niceToHavePercentage} className="h-2" />
+              <span className="text-xs text-slate-500">{niceToHavePercentage}% covered</span>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Target className="w-4 h-4 text-blue-600" />
+              <span className="text-sm text-slate-600">ATS Compatibility</span>
+              <Badge variant="outline" className={score >= 70 ? "border-green-200 text-green-700" : "border-red-200 text-red-700"}>
+                {score >= 70 ? "Good" : "Poor"}
+              </Badge>
+            </div>
+            <div className="flex items-center gap-3">
+              <TrendingUp className="w-4 h-4 text-blue-600" />
+              <span className="text-sm text-slate-600">Match Quality</span>
+              <Badge variant="outline" className={mustHavePercentage >= 70 ? "border-green-200 text-green-700" : "border-red-200 text-red-700"}>
+                {mustHavePercentage >= 70 ? "Strong" : "Weak"}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
