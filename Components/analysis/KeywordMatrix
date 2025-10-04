@@ -1,0 +1,82 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CheckCircle, XCircle, AlertCircle, Search } from "lucide-react";
+
+export default function KeywordMatrix({ skills }) {
+  const getActionBadge = (action) => {
+    switch (action?.toLowerCase()) {
+      case 'keep':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Keep</Badge>;
+      case 'boost':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Boost</Badge>;
+      case 'add':
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Add</Badge>;
+      default:
+        return <Badge variant="outline">Review</Badge>;
+    }
+  };
+
+  const getStatusIcon = (present) => {
+    if (present) {
+      return <CheckCircle className="w-4 h-4 text-green-600" />;
+    } else {
+      return <XCircle className="w-4 h-4 text-red-600" />;
+    }
+  };
+
+  return (
+    <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+      <CardHeader className="border-b border-slate-100">
+        <CardTitle className="flex items-center gap-3 text-slate-900">
+          <Search className="w-5 h-5 text-blue-600" />
+          Skills & Keywords Analysis
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50">
+                <TableHead>Skill/Keyword</TableHead>
+                <TableHead className="text-center">Present</TableHead>
+                <TableHead>Evidence</TableHead>
+                <TableHead>Action Needed</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {skills && skills.length > 0 ? (
+                skills.map((skill, index) => (
+                  <TableRow key={index} className="hover:bg-slate-50/50">
+                    <TableCell className="font-medium">
+                      {skill.skill}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {getStatusIcon(skill.present)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-slate-600">
+                        {skill.evidence || "Not found"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {getActionBadge(skill.action)}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center text-slate-500 py-8">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                    No skills analysis available
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
