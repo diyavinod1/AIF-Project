@@ -1,0 +1,253 @@
+import React, { useState, useEffect } from "react";
+import { ResumeAnalysis } from "@/entities/ResumeAnalysis";
+import { InvokeLLM } from "@/integrations/Core";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  BarChart3, 
+  CheckCircle, 
+  XCircle, 
+  AlertTriangle, 
+  TrendingUp, 
+  Target,
+  ArrowRight,
+  Loader2,
+  FileText,
+  Sparkles
+} from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+import ScoreOverview from "../components/analysis/ScoreOverview";
+import KeywordMatrix from "../components/analysis/KeywordMatrix";
+import RedFlagsTable from "../components/analysis/RedFlagsTable";
+import StrengthsRecommendations from "../components/analysis/StrengthsRecommendations";
+
+export default function AnalysisPage() {
+  const navigate = useNavigate();
+  const [analysis, setAnalysis] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    loadAnalysis();
+  }, []);
+
+  const loadAnalysis = async () => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const analysisId = urlParams.get('id');
+      
+      if (!analysisId) {
+        setError("No analysis ID provided");
+        return;
+      }
+
+      const analysisData = await ResumeAnalysis.list();
+      const currentAnalysis = analysisData.find(a => a.id === analysisId);
+      
+      if (!currentAnalysis) {
+        setError("Analysis not found");
+        return;
+      }
+
+      setAnalysis(currentAnalysis);
+    } catch (error) {
+      console.error("Error loading analysis:", error);
+      setError("Failed to load analysis results");
+    }
+  };
+
+  const generateOptimizedResume = async () => {
+    if (!analysis) return;
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      // Generate ATS-optimized resume
+      const optimizationPrompt = `
+Based on the analysis, create an ATS-optimized resume for this candidate:
+
+CANDIDATE: ${analysis.candidate_name}
+TARGET ROLE: ${analysis.target_role}
+EXPERIENCE LEVEL: ${analysis.experience_level}
+TONE: ${analysis.tone_preference}
+REGION: ${analysis.region}
+
+ORIGINAL RESUME:
+${analysis.original_resume}
+
+JOB DESCRIPTION:
+${analysis.job_description}
+
+ANALYSIS RESULTS:
+${JSON.stringify(analysis.analysis_results, null, 2)}
+
+Please provide:
+1. ATS-Plain version (text-only, no formatting)
+2. Formatted Markdown version
+3. Custom cover letter (120-180 words)
+4. LinkedIn headline (under 220 chars)
+5. LinkedIn About section (5 short paragraphs max)
+6. Top 5 STAR bullet transformations (before/after)
+
+Focus on:
+- Including missing keywords naturally
+- Quantifying achievements with metrics
+- Using strong action verbs
+- Optimizing for ATS parsing
+- Addressing identified gaps
+`;
+
+      const optimizedContent = await InvokeLLM({
+        prompt: optimizationPrompt,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            ats_plain_resume: { type: "string" },
+            formatted_resume: { type: "string" },
+            cover_letter: { type: "string" },
+            linkedin_headline: { type: "string" },
+            linkedin_about: { type: "string" },
+            star_transformations: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  before: { type: "string" },
+                  after: { type: "string" }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Update the analysis record
+      await ResumeAnalysis.update(analysis.id, {
+        optimized_resume_plain: optimizedContent.ats_plain_resume,
+        optimized_resume_formatted: optimizedContent.formatted_resume,
+        cover_letter: optimizedContent.cover_letter,
+        linkedin_headline: optimizedContent.linkedin_headline,
+        linkedin_about: optimizedContent.linkedin_about,
+        analysis_results: {
+          ...analysis.analysis_results,
+          star_transformations: optimizedContent.star_transformations
+        }
+      });
+
+      // Navigate to results page
+      navigate(`${createPageUrl("ResumeOutput")}?id=${analysis.id}`);
+
+    } catch (error) {
+      console.error("Generation error:", error);
+      setError("Failed to generate optimized resume. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6 flex items-center justify-center">
+        <Alert variant="destructive" className="max-w-md">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!analysis) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-slate-600">Loading analysis results...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const results = analysis.analysis_results;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <BarChart3 className="w-8 h-8 text-blue-600" />
+            <h1 className="text-3xl font-bold text-slate-900">Resume Analysis Results</h1>
+          </div>
+          <p className="text-slate-600 text-lg">
+            Comprehensive analysis for <strong>{analysis.candidate_name}</strong> targeting <strong>{analysis.target_role}</strong>
+          </p>
+        </div>
+
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid lg:grid-cols-12 gap-8">
+          {/* Main Analysis Content */}
+          <div className="lg:col-span-8 space-y-8">
+            <ScoreOverview 
+              score={analysis.ats_score}
+              coverage={results.keyword_coverage}
+            />
+
+            <KeywordMatrix skills={results.skills_analysis || []} />
+
+            <RedFlagsTable flags={results.red_flags || []} />
+          </div>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-4 space-y-6">
+            <StrengthsRecommendations 
+              strengths={results.strengths || []}
+              recommendations={results.recommendations || []}
+            />
+
+            {/* Action Button */}
+            <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+              <CardContent className="p-6 text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Sparkles className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="font-bold text-slate-900 mb-2">Ready to Optimize?</h3>
+                <p className="text-slate-600 text-sm mb-6">
+                  Generate your ATS-optimized resume, cover letter, and LinkedIn content based on this analysis.
+                </p>
+                <Button
+                  onClick={generateOptimizedResume}
+                  disabled={isGenerating}
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                  size="lg"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      Generate Optimized Content
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
