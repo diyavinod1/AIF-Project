@@ -1,0 +1,123 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Copy, CheckCircle, Mail, Linkedin } from "lucide-react";
+
+export default function CoverLetterPreview({ coverLetter, linkedinHeadline, linkedinAbout, onCopy, copiedText }) {
+  return (
+    <div className="grid lg:grid-cols-2 gap-6">
+      {/* Cover Letter */}
+      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+        <CardHeader className="border-b border-slate-100">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-3 text-slate-900">
+              <Mail className="w-5 h-5 text-blue-600" />
+              Cover Letter
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onCopy(coverLetter, "cover-letter")}
+              className={`${copiedText === 'cover-letter' ? 'bg-green-50 border-green-200' : ''}`}
+            >
+              {copiedText === "cover-letter" ? (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="prose prose-sm max-w-none">
+            <pre className="whitespace-pre-wrap text-slate-700 leading-relaxed font-sans">
+              {coverLetter}
+            </pre>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* LinkedIn Content */}
+      <div className="space-y-6">
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+          <CardHeader className="border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-3 text-slate-900">
+                <Linkedin className="w-5 h-5 text-blue-600" />
+                LinkedIn Headline
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onCopy(linkedinHeadline, "linkedin-headline")}
+                className={`${copiedText === 'linkedin-headline' ? 'bg-green-50 border-green-200' : ''}`}
+              >
+                {copiedText === "linkedin-headline" ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <p className="text-slate-700 leading-relaxed">
+              {linkedinHeadline}
+            </p>
+            <p className="text-xs text-slate-500 mt-3">
+              {linkedinHeadline?.length || 0}/220 characters
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-xl">
+          <CardHeader className="border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-3 text-slate-900">
+                <Linkedin className="w-5 h-5 text-blue-600" />
+                LinkedIn About Section
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onCopy(linkedinAbout, "linkedin-about")}
+                className={`${copiedText === 'linkedin-about' ? 'bg-green-50 border-green-200' : ''}`}
+              >
+                {copiedText === "linkedin-about" ? (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="max-h-64 overflow-y-auto">
+              <pre className="whitespace-pre-wrap text-slate-700 leading-relaxed font-sans text-sm">
+                {linkedinAbout}
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
